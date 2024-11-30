@@ -1,0 +1,54 @@
+#include <DHT.h>
+
+// Define Pins
+#define DHTPIN 3            // DHT22 data pin connected to digital pin 3
+#define DHTTYPE DHT22       // DHT type
+#define LDRPIN 2            // LDR digital output connected to digital pin 2
+#define RAINPIN A0          // Rain sensor analog output connected to A0
+
+// Initialize DHT Sensor
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  // Initialize serial communication
+  Serial.begin(9600);
+
+  // Initialize sensor pins
+  pinMode(LDRPIN, INPUT);
+  pinMode(RAINPIN, INPUT);
+
+  // Start DHT sensor
+  dht.begin();
+}
+
+void loop() {
+  // Read data from DHT22
+  float temperature = dht.readTemperature(); // Temperature in °C
+  float humidity = dht.readHumidity();       // Humidity in %
+
+  // Read data from Rain Sensor
+  int rainValue = analogRead(RAINPIN);       // Analog value for rain intensity (0–1023)
+
+  // Read data from LDR Sensor
+  int lightLevel = digitalRead(LDRPIN);      // Digital output for light (HIGH or LOW)
+
+  // Check if the readings are valid
+  if (isnan(temperature) || isnan(humidity)) {
+    Serial.println("Failed to read from DHT sensor!");
+  } else {
+    // Convert analog rainValue to a normalized range (0–100 as percentage)
+    int rainIntensity = map(rainValue, 0, 1023, 0, 100);
+
+    // Output in the desired format: humidity,temperature,rainflow,lightIntensity
+    Serial.print((int)humidity);            // Humidity
+    Serial.print(",");
+    Serial.print((int)temperature);         // Temperature
+    Serial.print(",");
+    Serial.print(rainIntensity);            // Rain Intensity (percentage)
+    Serial.print(",");
+    Serial.println(lightLevel);             // Light Intensity (0 or 1)
+  }
+
+  // Small delay before next reading
+  delay(1000);
+}
