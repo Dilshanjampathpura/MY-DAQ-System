@@ -5,50 +5,113 @@
 #define DHTTYPE DHT22       // DHT type
 #define LDRPIN 2            // LDR digital output connected to digital pin 2
 #define RAINPIN A0          // Rain sensor analog output connected to A0
+#define LED_RAIN 4          // LED 1 for rain intensity
+#define LED_TEMP 5          // LED 2 for temperature
 
 // Initialize DHT Sensor
 DHT dht(DHTPIN, DHTTYPE);
 
-void setup() {
-  // Initialize serial communication
-  Serial.begin(9600);
+// System mode (default to automatic)
+String systemMode = "automatic";
+int manualLedRainState = LOW;
+int manualLedTempState = LOW;
 
-  // Initialize sensor pins
+// Variables for LED blinking
+bool ledRainBlinkState = false;
+bool ledTempBlinkState = false;
+unsigned long previousRainMillis = 0;
+unsigned long previousTempMillis = 0;
+const unsigned long blinkInterval = 500; // Blink interval in milliseconds
+
+void setup() {
+  Serial.begin(9600);
   pinMode(LDRPIN, INPUT);
   pinMode(RAINPIN, INPUT);
-
-  // Start DHT sensor
+  pinMode(LED_RAIN, OUTPUT);
+  pinMode(LED_TEMP, OUTPUT);
   dht.begin();
 }
 
 void loop() {
-  // Read data from DHT22
-  float temperature = dht.readTemperature(); // Temperature in °C
-  float humidity = dht.readHumidity();       // Humidity in %
+  // Sensor readings
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+  int rainValue = analogRead(RAINPIN);
+  int rainIntensity = map(rainValue, 0, 1023, 0, 100);
 
-  // Read data from Rain Sensor
-  int rainValue = analogRead(RAINPIN);       // Analog value for rain intensity (0–1023)
+  unsigned long currentMillis = millis();
 
-  // Read data from LDR Sensor
-  int lightLevel = digitalRead(LDRPIN);      // Digital output for light (HIGH or LOW)
+  // Control LEDs based on mode
+  if (systemMode == "automatic") {
+    // Automatic mode logic
+    if (rainIntensity < 50) {
+      if (currentMillis - previousRainMillis >= blinkInterval) {
+        ledRainBlinkState = !ledRainBlinkState;
+        digitalWrite(LED_RAIN, ledRainBlinkState);
+        previousRainMillis = currentMillis;
+      }
+    } else {
+      digitalWrite(LED_RAIN, LOW);
+    }
 
-  // Check if the readings are valid
-  if (isnan(temperature) || isnan(humidity)) {
-    Serial.println("Failed to read from DHT sensor!");
+    if (temperature > 30) {
+      if (currentMillis - previousTempMillis >= blinkInterval) {
+        ledTempBlinkState = !ledTempBlinkState;
+        digitalWrite(LED_TEMP, ledTempBlinkState);
+        previousTempMillis = currentMillis;
+      }
+    } else {
+      digitalWrite(LED_TEMP, LOW);
+    }
   } else {
-    // Convert analog rainValue to a normalized range (0–100 as percentage)
-    int rainIntensity = map(rainValue, 0, 1023, 0, 100);
+    // Manual mode - use manually set states
+    if (manualLedRainState == HIGH) {
+      if (currentMillis - previousRainMillis >= blinkInterval) {
+        ledRainBlinkState = !ledRainBlinkState;
+        digitalWrite(LED_RAIN, ledRainBlinkState);
+        previousRainMillis = currentMillis;
+      }
+    } else {
+      digitalWrite(LED_RAIN, LOW);
+    }
 
-    // Output in the desired format: humidity,temperature,rainflow,lightIntensity
-    Serial.print((int)humidity);            // Humidity
-    Serial.print(",");
-    Serial.print((int)temperature);         // Temperature
-    Serial.print(",");
-    Serial.print(rainIntensity);            // Rain Intensity (percentage)
-    Serial.print(",");
-    Serial.println(lightLevel);             // Light Intensity (0 or 1)
+    if (manualLedTempState == HIGH) {
+      if (currentMillis - previousTempMillis >= blinkInterval) {
+        ledTempBlinkState = !ledTempBlinkState;
+        digitalWrite(LED_TEMP, ledTempBlinkState);
+        previousTempMillis = currentMillis;
+      }
+    } else {
+      digitalWrite(LED_TEMP, LOW);
+    }
   }
 
-  // Small delay before next reading
-  delay(1000);
+  // Send sensor data
+  Serial.print((int)humidity);
+  Serial.print(",");
+  Serial.print((int)temperature);
+  Serial.print(",");
+  Serial.print(rainIntensity);
+  Serial.print(",");
+  Serial.print(digitalRead(LDRPIN));
+  Serial.print(",");
+  Serial.println(systemMode == "manual" ? 1 : 0);
+
+  // Check for commands
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    if (command == "MODE:AUTOMATIC") {
+      systemMode = "automatic";
+    } else if (command == "MODE:MANUAL") {
+      systemMode = "manual";
+    } else if (command == "LED1:ON" && systemMode == "manual") {
+      manualLedRainState = HIGH;
+    } else if (command == "LED1:OFF" && systemMode == "manual") {
+      manualLedRainState = LOW;
+    } else if (command == "LED2:ON" && systemMode == "manual") {
+      manualLedTempState = HIGH;
+    } else if (command == "LED2:OFF" && systemMode == "manual") {
+      manualLedTempState = LOW;
+    }
+  }
 }
