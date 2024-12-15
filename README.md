@@ -12,3 +12,5 @@ Data logging to a MongoDB database for future analysis.
 Integration of multiple environmental sensors.
 Low-cost, efficient, and scalable design.
 Version 1.0 This version includes the initial setup for sensor data collection, LCD functionality, and the first version of the database integration.
+
+Version 2.0 introduces enhanced functionality with COM port selection on the front-end interface, allowing seamless communication with the hardware. Additionally, manual control options have been added to toggle connected devices such as the water pump and temperature alarm, providing more flexibility for users. These improvements build on the foundational features of real-time sensor data display, database logging, and environmental monitoring introduced in v1.0.
